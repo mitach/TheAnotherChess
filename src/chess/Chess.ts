@@ -2,6 +2,7 @@ import * as PIXI from "pixi.js";
 import { SQUARE_SIZE, INITIAL_STATE } from "./constants";
 import { getPieceAssetName, LAYERS } from "./utils";
 import GameState from "./GameState";
+import MovementService from "./MovementService";
 
 export default class Chess {
     _app!: PIXI.Application;
@@ -10,11 +11,13 @@ export default class Chess {
     _dragStarted = false;
     _highlightSquare!: PIXI.Graphics;
     _gameState: GameState;
+    _movementService: MovementService;
 
     constructor(gameElement: HTMLElement) {
         this._gameElement = gameElement;
         this._gameState = new GameState();
-        this._gameState._boardState = INITIAL_STATE
+        this._gameState._boardState = INITIAL_STATE;
+        this._movementService = new MovementService(this._gameState);
     }
 
     async init() {
@@ -30,7 +33,7 @@ export default class Chess {
         const highlightLayer = this._app.stage.getChildByLabel(LAYERS.HIGHLIGHTS) as PIXI.Container;
         this._highlightSquare = new PIXI.Graphics();
         this._highlightSquare.rect(0, 0, SQUARE_SIZE, SQUARE_SIZE);
-            this._highlightSquare.stroke({ width: 5, alignment: 1, color: 0x40e0d0 });
+        this._highlightSquare.stroke({ width: 5, alignment: 1, color: 0x40e0d0 });
         this._highlightSquare.visible = false;
 
         highlightLayer.addChild(this._highlightSquare);
@@ -119,60 +122,70 @@ export default class Chess {
 
                     piece.label = assetName;
                     piece.anchor = 0.5;
+                    piece.interactive = true;
 
                     piece.x = SQUARE_SIZE * col + piece.width / 2;
                     piece.y = SQUARE_SIZE * row + piece.height / 2;
-
-                    piece.interactive = true;
-                    piece.on("pointerdown", (e) => {
-                        this._selected = piece;
-                        this._dragStarted = true;
-                        this._highlightSquare.visible = true;
-
-                        piece.scale.set(1.1);
-                        piece.zIndex = 10;
-
-                        const localPos = piecesLayer.toLocal(e.global);
-                        const column = Math.floor(localPos.x / SQUARE_SIZE);
-                        const row = Math.floor(localPos.y / SQUARE_SIZE);
-
-                        this._selected.position.set(localPos.x, localPos.y);
-                        this._highlightSquare.position.set(column * SQUARE_SIZE, row * SQUARE_SIZE);
-                    });
-
-                    piecesLayer.on("pointermove", (e) => {
-                        if (this._dragStarted && this._selected) {
-                            const localPos = piecesLayer.toLocal(e.global);
-                            this._selected.position.set(localPos.x, localPos.y);
-
-                            const column = Math.floor(localPos.x / SQUARE_SIZE);
-                            const row = Math.floor(localPos.y / SQUARE_SIZE);
-
-                            this._highlightSquare.position.set(column * SQUARE_SIZE, row * SQUARE_SIZE);
-                        }
-                    });
-
-                    piece.on("pointerup", (e) => {
-                        this._dragStarted = false;
-                        this._selected!.scale.set(1);
-                        this._selected!.zIndex = 0;
-
-                        const localPos = piecesLayer.toLocal(e.global);
-                        const column = Math.floor(localPos.x / SQUARE_SIZE);
-                        const row = Math.floor(localPos.y / SQUARE_SIZE);
-
-                        this._selected!.position.set(
-                            column * SQUARE_SIZE + SQUARE_SIZE / 2,
-                            row * SQUARE_SIZE + SQUARE_SIZE / 2
-                        );
-
-                        this._selected = null;
-                        this._highlightSquare.visible = false;
-                    });
+                    
+                    piece.on('pointerdown', (e) => this.onPiecePointerDown(e, piece));
+                    piecesLayer.on('pointermove', (e) => this.onPiecesLayerPointerMove(e));
+                    piece.on('pointerup', (e) => this.onPiecePointerUp(e));
 
                     piecesLayer.addChild(piece);
                 }
             }
         }
+    }
+
+    protected onPiecePointerDown(e: PIXI.FederatedMouseEvent, piece: PIXI.Sprite) {
+        const piecesLayer = this._app.stage.getChildByLabel(LAYERS.PIECES) as PIXI.Container;
+
+        this._selected = piece;
+        this._dragStarted = true;
+        this._highlightSquare.visible = true;
+
+        this._selected.scale.set(1.1);
+        this._selected.zIndex = 10;
+
+        const localPos = piecesLayer.toLocal(e.global);
+        const column = Math.floor(localPos.x / SQUARE_SIZE);
+        const row = Math.floor(localPos.y / SQUARE_SIZE);
+
+        this._selected.position.set(localPos.x, localPos.y);
+        this._highlightSquare.position.set(column * SQUARE_SIZE, row * SQUARE_SIZE);
+    }
+
+    protected onPiecesLayerPointerMove(e: PIXI.FederatedMouseEvent) {
+        const piecesLayer = this._app.stage.getChildByLabel(LAYERS.PIECES) as PIXI.Container;
+
+        if (this._dragStarted && this._selected) {
+            const localPos = piecesLayer.toLocal(e.global);
+            this._selected.position.set(localPos.x, localPos.y);
+
+            const column = Math.floor(localPos.x / SQUARE_SIZE);
+            const row = Math.floor(localPos.y / SQUARE_SIZE);
+
+            this._highlightSquare.position.set(column * SQUARE_SIZE, row * SQUARE_SIZE);
+        }
+    }
+
+    protected onPiecePointerUp(e: PIXI.FederatedMouseEvent) {
+        const piecesLayer = this._app.stage.getChildByLabel(LAYERS.PIECES) as PIXI.Container;
+
+        this._dragStarted = false;
+        this._selected!.scale.set(1);
+        this._selected!.zIndex = 0;
+
+        const localPos = piecesLayer.toLocal(e.global);
+        const column = Math.floor(localPos.x / SQUARE_SIZE);
+        const row = Math.floor(localPos.y / SQUARE_SIZE);
+
+        this._selected!.position.set(
+            column * SQUARE_SIZE + SQUARE_SIZE / 2,
+            row * SQUARE_SIZE + SQUARE_SIZE / 2
+        );
+
+        this._selected = null;
+        this._highlightSquare.visible = false;
     }
 }
