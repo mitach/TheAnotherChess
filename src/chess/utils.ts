@@ -33,4 +33,5 @@ export enum LAYERS {
     BOARD = 'boardLayer',
     HIGHLIGHTS = 'highlightLayer',
     PIECES = 'piecesLayer',
+    VALID_MOVES = 'validMovesLayer',
 }

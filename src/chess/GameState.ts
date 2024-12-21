@@ -1,4 +1,7 @@
 export default class GameState {
-    _boardState: string[][] = [];
-    _playerTurn: boolean = false;
+    boardState: string[][] = [];
+    playerTurn: boolean = false;
+    selectedColumn: number = 0;
+    selectedRow: number = 0;
+    validMoves: number[][] = []
 }
